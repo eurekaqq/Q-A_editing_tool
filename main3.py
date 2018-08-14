@@ -76,7 +76,7 @@ class dig_similarity_word(QWidget):
     def initUI(self):
         # insert search
         # get synonym
-        with(open(r'./generation/synonyms_tw.txt', 'r', encoding='utf-8')) as data:
+        with(open(r'./data/synonyms_tw.txt', 'r', encoding='utf-8')) as data:
             self.synonym_dict = [line.split() for line in data.readlines()]
 
         self.all_synonym = set(word for synonym in self.synonym_dict for word in synonym)
@@ -104,7 +104,7 @@ class dig_similarity_word(QWidget):
             find_synonym()
             if self.current_index is None:
                 self.word2.clear()
-            print(self.current_index)
+            # print(self.current_index)
 
         self.word1.textEdited.connect(init_current_index)
 
@@ -146,7 +146,6 @@ class dig_similarity_word(QWidget):
             word = self.word1.text()
             for index, words in enumerate(self.synonym_dict):
                 if word in words:
-                    print(words)
                     return words
             else:
                 return []
@@ -158,7 +157,7 @@ class dig_similarity_word(QWidget):
                 self.all_synonym.discard(i)
             self.model.setStringList(self.all_synonym)
 
-            with open(r'./similarity/jieba_model/expend_dict.json', 'r', encoding='utf-8') as jsonFile:
+            with open(r'./data/expend_dict.json', 'r', encoding='utf-8') as jsonFile:
                 expend_word = json.load(jsonFile)
 
             for word in synonym_of_word:
@@ -170,28 +169,32 @@ class dig_similarity_word(QWidget):
                 self.synonym_dict.append(self.word2.toPlainText().split())
                 self.current_index = len(self.synonym_dict) - 1
 
-            shutil.copyfile(r'./similarity/jieba_model/dict.txt.big', r'./similarity/jieba_model/dict.txt')
+            shutil.copyfile(r'./data/dict.txt.big', r'./data/dict.txt')
 
             for word in self.word2.toPlainText().split():
                 if self.pos.currentText() == "不知道":
                     expend_word[unicodedata.normalize('NFC', word)] = ''
                 elif self.pos.currentText() == '地名':
                     expend_word[unicodedata.normalize('NFC', word)] = 'n'
-                    with open(r'./data/place.txt', 'a', encoding='utf-8') as place_dic:
+                    with open(r'./data/user_keyword.txt', 'a', encoding='utf-8') as place_dic:
+                        place_dic.write(word + '\n')
+                elif self.pos.currentText() == '關鍵字':
+                    expend_word[unicodedata.normalize('NFC', word)] = 'n'
+                    with open(r'./data/user_keyword.txt', 'a', encoding='utf-8') as place_dic:
                         place_dic.write(word + '\n')
                 elif self.pos.currentText() == '名詞':
                     expend_word[unicodedata.normalize('NFC', word)] = 'n'
                 else:
                     expend_word[unicodedata.normalize('NFC', word)] = 'v'
 
-            with open(r'./similarity/jieba_model/dict.txt', 'a', encoding='utf-8') as output:
+            with open(r'./data/dict.txt', 'a', encoding='utf-8') as output:
                 for word in expend_word:
                     output.write('{0} 100000000000000 {1}\n'.format(word, expend_word[word]))
 
-            with open(r'./similarity/jieba_model/expend_dict.json', 'w', encoding='utf-8') as jsonFile:
+            with open(r'./data/expend_dict.json', 'w', encoding='utf-8') as jsonFile:
                 json.dump(expend_word, jsonFile, indent=4)
 
-            with open(r'./generation/synonyms_tw.txt', 'w', encoding='utf-8') as output:
+            with open(r'./data/synonyms_tw.txt', 'w', encoding='utf-8') as output:
                 for word_list in self.synonym_dict:
                     output.write('{0}\n'.format(' '.join(word_list)))
 
@@ -237,7 +240,7 @@ class dig_similarity_word(QWidget):
                                           QMessageBox.Yes | QMessageBox.No,
                                           QMessageBox.No)
             if result == QMessageBox.Yes:
-                with open(r'./similarity/jieba_model/expend_dict.json', 'r', encoding='utf-8') as jsonFile:
+                with open(r'./data/expend_dict.json', 'r', encoding='utf-8') as jsonFile:
                     expend_word = json.load(jsonFile)
 
                 for i in self.synonym_dict[self.current_index]:
@@ -245,17 +248,17 @@ class dig_similarity_word(QWidget):
                     expend_word.pop(i, None)
                 self.model.setStringList(self.all_synonym)
 
-                shutil.copyfile(r'./similarity/jieba_model/dict.txt.big', r'./similarity/jieba_model/dict.txt')
+                shutil.copyfile(r'./data/dict.txt.big', r'./data/dict.txt')
 
-                with open(r'./similarity/jieba_model/dict.txt', 'a', encoding='utf-8') as output:
+                with open(r'./data/dict.txt', 'a', encoding='utf-8') as output:
                     for word in expend_word:
                         output.write('{0} 100000000000000 {1}\n'.format(word, expend_word[word]))
 
-                with open(r'./similarity/jieba_model/expend_dict.json', 'w', encoding='utf-8') as jsonFile:
+                with open(r'./data/expend_dict.json', 'w', encoding='utf-8') as jsonFile:
                     json.dump(expend_word, jsonFile, indent=4)
 
                 del self.synonym_dict[self.current_index]
-                with open(r'./generation/synonyms_tw.txt', 'w', encoding='utf-8') as output:
+                with open(r'./data/synonyms_tw.txt', 'w', encoding='utf-8') as output:
                     for word_list in self.synonym_dict:
                         output.write('{0}\n'.format(' '.join(word_list)))
 
@@ -377,7 +380,7 @@ class dig_edit_sentence(QWidget):
 
         self.setLayout(self.main_layout)
 
-    # 好像有BUG
+    # 好像有BUG，會拿到下一句
     @pyqtSlot()
     def show_selected_item(self):
         if len(self.sentence_index_list) > 0:
@@ -445,46 +448,38 @@ class dig_edit_sentence(QWidget):
     # 清除最後一個好像有BUG
     @pyqtSlot()
     def remove_btn_method(self):
-        if self.new_or_not.checkState():
-            QMessageBox.information(self, "提醒", '請先勾去"新增句子"')
+        if self.tableWidget.currentItem() is not None:
+            if self.new_or_not.checkState():
+                QMessageBox.information(self, "提醒", '請先勾去"新增句子"')
 
-        elif len(self.sentence_index_list) > 0:
-            result = QMessageBox.question(self, '警告', '確定要刪除"{0}"嗎?'.format(self.tableWidget.currentItem().text()),
-                                          QMessageBox.Yes | QMessageBox.No,
-                                          QMessageBox.No)
+            elif len(self.sentence_index_list) > 0:
+                result = QMessageBox.question(self, '警告', '確定要刪除"{0}"嗎?'.format(self.tableWidget.currentItem().text()),
+                                              QMessageBox.Yes | QMessageBox.No,
+                                              QMessageBox.No)
 
-            if result == QMessageBox.Yes:
-                current_index = self.sentence_index_list[self.tableWidget.currentIndex().row()]
-                for i in range(self.tableWidget.currentIndex().row() + 1, len(self.sentence_index_list)):
-                    self.sentence_index_list[i] -= 1
-                self.collection.remove({'uuid': current_index})
+                if result == QMessageBox.Yes:
+                    current_index = self.sentence_index_list[self.tableWidget.currentIndex().row()]
+                    for i in range(self.tableWidget.currentIndex().row() + 1, len(self.sentence_index_list)):
+                        self.sentence_index_list[i] -= 1
+                    self.collection.remove({'uuid': current_index})
 
-                for row in self.collection.find({'uuid': {'$gt': current_index}}):
-                    row['uuid'] -= 1
-                    self.collection.save(row)
-                # print(444444)
-                # print(self.sentence_index_list)
-                del self.sentence_index_list[self.tableWidget.currentIndex().row()]
-                # print(444)
-                # print(self.tableWidget.rowCount())
-                # print(self.sentence_index_list)
-                # print(self.tableWidget.currentIndex().row())
-                # print(self.tableWidget.currentIndex().row())
+                    for row in self.collection.find({'uuid': {'$gt': current_index}}):
+                        row['uuid'] -= 1
+                        self.collection.save(row)
 
-                if self.tableWidget.rowCount() == 1:
-                    print(1)
-                    self.tableWidget.setItem(0, 0, QTableWidgetItem(''))
+                    del self.sentence_index_list[self.tableWidget.currentIndex().row()]
+
+                    if self.tableWidget.rowCount() == 1:
+                        self.tableWidget.setItem(0, 0, QTableWidgetItem(''))
+
+                    else:
+                        self.tableWidget.removeRow(self.tableWidget.currentIndex().row())
 
                 else:
-                    print(222222)
-                    self.tableWidget.removeRow(self.tableWidget.currentIndex().row())
-                print('finish')
-
-                # self.sentence_list.removeItem(current_index)
+                    pass
 
             else:
                 pass
-
         else:
             pass
 
@@ -497,9 +492,9 @@ class dig_edit_sentence(QWidget):
                     'segmentation': '',
                     'pos': ''}
             self.collection.insert(data)
-            print(len(self.sentence_index_list))
+            # print(len(self.sentence_index_list))
             self.sentence_index_list.append(data['uuid'])
-            print(len(self.sentence_index_list))
+            # print(len(self.sentence_index_list))
             self.tableWidget.insertRow(self.tableWidget.rowCount())
             self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 0, QTableWidgetItem(str(data['sentence'])))
             QMessageBox.information(self, "提醒", '已儲存"{}"'.format(self.sentence.toPlainText()))
@@ -544,10 +539,6 @@ class dig_sentence_log(QWidget):
         self.show_all_sentences.stateChanged.connect(self.state_changed)
         self.sentences_id = []
 
-        # self.log_list = QComboBox()
-        # self.load_sentence()
-        # self.log_list.currentIndexChanged.connect(self.show_selected_item)
-        # -------------for search bar ---------------------
         self.search_text = QLineEdit()
         self.search_text.textChanged.connect(self.search_sentences)
 
@@ -624,21 +615,6 @@ class dig_sentence_log(QWidget):
             self.tableWidget.setItem(index, 0, QTableWidgetItem(str(item['sentence'])))
             self.sentence_index_list.append(item['_id'])
 
-        #     search = self.collection_log.find({'$and': search_condition})
-        #     self.tableWidget.setRowCount(search.count())
-        #
-        #     for index, item in enumerate(search):
-        #         self.tableWidget.setItem(index, 0, QTableWidgetItem(str(item['sentence'])))
-        #         self.sentence_index_list.append(item['_id'])
-        #
-        # else:
-        #     search = self.collection_log.find()
-        #     self.tableWidget.setRowCount(search.count())
-        #
-        #     for index, item in enumerate(search):
-        #         self.tableWidget.setItem(index, 0, QTableWidgetItem(str(item['sentence'])))
-        #         self.sentence_index_list.append(item['_id'])
-
     @pyqtSlot()
     def load_sentence(self):
         for _ in range(len(self.sentences_id)):
@@ -672,12 +648,6 @@ class dig_sentence_log(QWidget):
         else:
             pass
 
-    # @pyqtSlot()
-    # def show_selected_item(self):
-    #     data = self.collection_log.find_one({'_id': self.sentences_id[self.log_list.currentIndex()]})
-    #     self.sentence.setText(self.log_list.currentText())
-    #     self.answer.setText(data['answer'])
-
     @pyqtSlot()
     def state_changed(self):
         self.sentence.clear()
@@ -687,30 +657,30 @@ class dig_sentence_log(QWidget):
 
     @pyqtSlot()
     def remove_btn_method(self):
-        if len(self.sentence_index_list) > 0:
-            result = QMessageBox.question(self, '警告', '確定要刪除"{0}"嗎?'.format(self.tableWidget.currentItem().text()),
-                                          QMessageBox.Yes | QMessageBox.No,
-                                          QMessageBox.No)
+        if self.tableWidget.currentItem() is not None:
+            if len(self.sentence_index_list) > 0:
+                result = QMessageBox.question(self, '警告', '確定要刪除"{0}"嗎?'.format(self.tableWidget.currentItem().text()),
+                                              QMessageBox.Yes | QMessageBox.No,
+                                              QMessageBox.No)
 
-            if result == QMessageBox.Yes:
-                current_index = self.sentence_index_list[self.tableWidget.currentIndex().row()]
-                self.collection_log.remove({'_id': current_index})
+                if result == QMessageBox.Yes:
+                    current_index = self.sentence_index_list[self.tableWidget.currentIndex().row()]
+                    self.collection_log.remove({'_id': current_index})
 
-                del self.sentence_index_list[self.tableWidget.currentIndex().row()]
+                    del self.sentence_index_list[self.tableWidget.currentIndex().row()]
 
-                if self.tableWidget.rowCount() == 1:
-                    print(1)
-                    self.tableWidget.setItem(0, 0, QTableWidgetItem(''))
+                    if self.tableWidget.rowCount() == 1:
+                        self.tableWidget.setItem(0, 0, QTableWidgetItem(''))
+
+                    else:
+                        self.tableWidget.removeRow(self.tableWidget.currentIndex().row())
 
                 else:
-                    print(222222)
-                    self.tableWidget.removeRow(self.tableWidget.currentIndex().row())
-                print('finish')
-
+                    pass
             else:
-                pass
+                QMessageBox.information(self, '警告', '目前沒有句子')
         else:
-            QMessageBox.information(self, '警告', '目前沒有句子')
+            pass
 
     def remove_item_from_table(self):
         current_index = self.sentence_index_list[self.tableWidget.currentIndex().row()]
@@ -719,13 +689,10 @@ class dig_sentence_log(QWidget):
         del self.sentence_index_list[self.tableWidget.currentIndex().row()]
 
         if self.tableWidget.rowCount() == 1:
-            print(1)
             self.tableWidget.setItem(0, 0, QTableWidgetItem(''))
 
         else:
-            print(222222)
             self.tableWidget.removeRow(self.tableWidget.currentIndex().row())
-        print('finish')
 
     @pyqtSlot()
     def save_btn_method(self):
@@ -767,10 +734,12 @@ class back_up_window(QWidget):
         self.setLayout(self.main_layout)
 
     def backup(self):
-        subprocess.check_output(['mongodump', '-d', 'taroko', '-o', './backup/{}'.format(time.strftime(r'%Y-%m-%d'))])
+        # subprocess.check_output(['mongodump', '-d', 'taroko', '-o', './backup/{}'.format(time.strftime(r'%Y-%m-%d'))])
+        subprocess.call(['mongodump', '-d', 'taroko', '-o', './backup/{}'.format(time.strftime(r'%Y-%m-%d'))])
 
-        # with open(r'./config.json','w',encoding='utf-8') as config:
-        #     json.dump({'last_backup_date':time.strftime(r'%Y-%m-%d')},config, indent=4, ensure_ascii=True, sort_keys=True)
+        with open(r'./data/backup_log.json', 'w', encoding='utf-8') as config:
+            json.dump({'last_backup_date': time.strftime(r'%Y-%m-%d')}, config, indent=4, ensure_ascii=True,
+                      sort_keys=True)
 
         QMessageBox.information(self, '提醒', '備份成功')
 
@@ -779,8 +748,16 @@ class back_up_window(QWidget):
         options |= QFileDialog.DontUseNativeDialog
         dir_name = QFileDialog.getExistingDirectory(self)
         if dir_name:
-            subprocess.check_output(['mongorestore', '-d', 'taroko', '--drop', dir_name])
+            subprocess.call(['mongorestore', '-d', 'taroko', '--drop', dir_name])
             QMessageBox.information(self, '提醒', '還原成功')
+
+    @staticmethod
+    def auto_backup():
+        subprocess.call(['mongodump', '-d', 'taroko', '-o', './backup/{}'.format(time.strftime(r'%Y-%m-%d'))])
+
+        with open(r'./data/backup_log.json', 'w', encoding='utf-8') as config:
+            json.dump({'last_backup_date': time.strftime(r'%Y-%m-%d')}, config, indent=4, ensure_ascii=True,
+                      sort_keys=True)
 
 
 class QA_system_window(QTabWidget):
@@ -792,23 +769,10 @@ class QA_system_window(QTabWidget):
         self.initUI()
 
     def initUI(self):
-        # with open(r'./config.json', 'r', encoding='utf-8') as config:
-        #     tt = json.load(config)
-        #     d1 = time.strptime(tt['last_backup_date'],'%Y-%m-%d')
-        #     d11 = datetime.datetime(2019,d1[1],d1[2])
-        #     datetime.datetime.now()
-        #     d2 = time.strptime('2019-08-08','%Y-%m-%d')
-        #     print((datetime.datetime.now() - d11).days)
-
-
-        # with open(r'./config.json','w',encoding='utf-8') as config:
-        #     json.dump({'last_exe_date':time.strftime(r'%Y-%m-%d')},config)
-
         self.setWindowTitle(self.title)
         self.setMinimumSize(self.width, self.height)
         self.resize(self.width, self.height)
 
-        # self.addTab(dig_keyword(), '新增關鍵字')
         self.addTab(dig_similarity_word(), '編輯同義詞')
         self.addTab(dig_edit_sentence(), '編輯問句')
         self.addTab(dig_sentence_log(), '回答紀錄')
@@ -816,6 +780,16 @@ class QA_system_window(QTabWidget):
 
         # Show widget
         self.show()
+
+        with open(r'./data/backup_log.json', 'r', encoding='utf-8') as backup_date:
+            last_date_json = json.load(backup_date)
+            temp = time.strptime(last_date_json['last_backup_date'], '%Y-%m-%d')
+            last_date = datetime.datetime(temp[0], temp[1], temp[2])
+            datetime.datetime.now()
+
+        if (datetime.datetime.now() - last_date).days > 6:
+            back_up_window.auto_backup()
+            QMessageBox.information(self, '提醒', '自動備份成功')
 
 
 if __name__ == '__main__':
